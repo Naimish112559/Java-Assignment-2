@@ -1,0 +1,624 @@
+import java.io.*;
+import java.util.*;
+
+/**
+ * SMART LIBRARY MANAGEMENT SYSTEM
+ * Real-time problem: manage books, members, borrowing, returning and
+ * reservations in a college library using the Java Collections Framework.
+ */
+public class LibraryManagementSystem {
+
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        Library lib = new Library();
+        lib.loadSampleData();
+
+        System.out.println("==========================================");
+        System.out.println("     SMART LIBRARY MANAGEMENT SYSTEM");
+        System.out.println("==========================================");
+
+        boolean running = true;
+        while (running) {
+            System.out.println("\n 1. Display all books");
+            System.out.println(" 2. Add a new book");
+            System.out.println(" 3. Remove a book");
+            System.out.println(" 4. Register a member");
+            System.out.println(" 5. View members");
+            System.out.println(" 6. Issue a book");
+            System.out.println(" 7. Return a book");
+            System.out.println(" 8. Search books (title/author keyword)");
+            System.out.println(" 9. Sort books (title / author)");
+            System.out.println("10. Books grouped by genre");
+            System.out.println("11. Most popular books");
+            System.out.println("12. View waiting lists");
+            System.out.println("13. View transaction log");
+            System.out.println("14. Save transaction log to a file");
+            System.out.println("15. Multithreading demo (2 members, 1 book)");
+            System.out.println(" 0. Exit");
+            System.out.print("Enter choice: ");
+
+            // Fix 2: Prevent Ctrl+D / EOF crash
+            if (!sc.hasNextLine()) {
+                break;
+            }
+            String choice = sc.nextLine().trim();
+
+            try {
+                switch (choice) {
+                    case "1":
+                        lib.printAll("ALL BOOKS", lib.getAllBooks());
+                        break;
+                    case "2":
+                        System.out.print("Book ID (e.g. B109): ");
+                        if (!sc.hasNextLine()) { running = false; break; }
+                        String id = sc.nextLine().trim().toUpperCase();
+                        
+                        System.out.print("Title : ");
+                        if (!sc.hasNextLine()) { running = false; break; }
+                        String title = sc.nextLine().trim();
+                        
+                        System.out.print("Author: ");
+                        if (!sc.hasNextLine()) { running = false; break; }
+                        String author = sc.nextLine().trim();
+                        
+                        System.out.print("Genre : ");
+                        if (!sc.hasNextLine()) { running = false; break; }
+                        String genre = sc.nextLine().trim();
+                        
+                        lib.addBook(new Book(id, title, author, genre));
+                        System.out.println("Book added successfully.");
+                        break;
+                    case "3":
+                        System.out.print("Book ID to remove: ");
+                        if (!sc.hasNextLine()) { running = false; break; }
+                        lib.removeBook(sc.nextLine().trim().toUpperCase());
+                        System.out.println("Book removed.");
+                        break;
+                    case "4":
+                        System.out.print("Member name: ");
+                        if (!sc.hasNextLine()) { running = false; break; }
+                        String name = sc.nextLine().trim();
+                        if (name.isEmpty()) {
+                            throw new LibraryException("Name cannot be empty.");
+                        }
+                        Member m = lib.registerMember(name);
+                        System.out.println("Registered! Member ID = " + m.getId());
+                        break;
+                    case "5":
+                        lib.printAll("MEMBERS", lib.getAllMembers());
+                        break;
+                    case "6":
+                        System.out.print("Book ID  : ");
+                        if (!sc.hasNextLine()) { running = false; break; }
+                        String ib = sc.nextLine().trim().toUpperCase();
+                        
+                        System.out.print("Member ID: ");
+                        if (!sc.hasNextLine()) { running = false; break; }
+                        String im = sc.nextLine().trim().toUpperCase();
+                        
+                        System.out.println(lib.issueBook(ib, im));
+                        break;
+                    case "7":
+                        System.out.print("Book ID  : ");
+                        if (!sc.hasNextLine()) { running = false; break; }
+                        String rb = sc.nextLine().trim().toUpperCase();
+                        
+                        System.out.print("Member ID: ");
+                        if (!sc.hasNextLine()) { running = false; break; }
+                        String rm = sc.nextLine().trim().toUpperCase();
+                        
+                        System.out.println(lib.returnBook(rb, rm));
+                        break;
+                    case "8":
+                        System.out.print("Enter keyword: ");
+                        if (!sc.hasNextLine()) { running = false; break; }
+                        String key = sc.nextLine().trim();
+                        ArrayList<Book> found = lib.search(key);
+                        if (found.isEmpty()) {
+                            System.out.println("No books match \"" + key + "\".");
+                        } else {
+                            lib.printAll("SEARCH RESULTS (" + found.size() + ")", found);
+                        }
+                        break;
+                    case "9":
+                        System.out.print("Sort by (1) Title  (2) Author : ");
+                        if (!sc.hasNextLine()) { running = false; break; }
+                        String s = sc.nextLine().trim();
+                        if (s.equals("1")) {
+                            lib.printAll("BOOKS SORTED BY TITLE", lib.sortedBooks(1));
+                        } else if (s.equals("2")) {
+                            lib.printAll("BOOKS SORTED BY AUTHOR", lib.sortedBooks(2));
+                        } else {
+                            System.out.println("Invalid option.");
+                        }
+                        break;
+                    case "10":
+                        lib.showGenreCatalogue();
+                        break;
+                    case "11":
+                        lib.showPopularityReport();
+                        break;
+                    case "12":
+                        lib.showWaitingLists();
+                        break;
+                    case "13":
+                        lib.showLog();
+                        break;
+                    case "14":
+                        lib.saveLogToFile("library_log.txt");
+                        break;
+                    case "15":
+                        runThreadDemo(lib);
+                        break;
+                    case "0":
+                        running = false;
+                        System.out.println("Thank you for using the Smart Library System!");
+                        break;
+                    default:
+                        System.out.println("Invalid choice. Please enter 0-15.");
+                }
+            } catch (LibraryException e) {
+                System.out.println("Error: " + e.getMessage());
+            } finally {
+                if (running) {
+                    System.out.println("------------------------------------------");
+                }
+            }
+        }
+        sc.close();
+    }
+
+    private static void runThreadDemo(Library lib) {
+        lib.ensureDemoData();
+        System.out.println("\n--- Two threads racing for book D001 ---");
+        BorrowThread t1 = new BorrowThread("Thread-Asha", lib, "D001", lib.getDemoAId());
+        BorrowThread t2 = new BorrowThread("Thread-Ravi", lib, "D001", lib.getDemoBId());
+        t1.start();
+        t2.start();
+        try {
+            t1.join();
+            t2.join();
+        } catch (InterruptedException e) {
+            System.out.println("Demo interrupted.");
+        }
+        System.out.println("--- Done: one thread got the book, the other was queued ---");
+    }
+}
+
+class LibraryException extends Exception {
+    public LibraryException(String message) {
+        super(message);
+    }
+}
+
+class BookNotFoundException extends LibraryException {
+    public BookNotFoundException(String bookId) {
+        super("No book found with ID " + bookId + ".");
+    }
+}
+
+class MemberNotFoundException extends LibraryException {
+    public MemberNotFoundException(String memberId) {
+        super("No member found with ID " + memberId + ".");
+    }
+}
+
+class BorrowLimitException extends LibraryException {
+    public BorrowLimitException(String memberName, int limit) {
+        super(memberName + " has reached the limit of " + limit + " books.");
+    }
+}
+
+class BorrowThread extends Thread {
+    private Library lib;
+    private String bookId;
+    private String memberId;
+
+    public BorrowThread(String threadName, Library lib, String bookId, String memberId) {
+        super(threadName);
+        this.lib = lib;
+        this.bookId = bookId;
+        this.memberId = memberId;
+    }
+
+    public void run() {
+        try {
+            System.out.println("[" + getName() + "] " + lib.issueBook(bookId, memberId));
+        } catch (LibraryException e) {
+            System.out.println("[" + getName() + "] Error: " + e.getMessage());
+        }
+    }
+}
+
+class Repository<T> {
+    private ArrayList<T> items = new ArrayList<T>();
+
+    public void add(T item) {
+        items.add(item);
+    }
+
+    public ArrayList<T> getAll() {
+        return items;
+    }
+
+    public int size() {
+        return items.size();
+    }
+}
+
+class Book {
+    private String id;
+    private String title;
+    private String author;
+    private String genre;
+    private boolean available = true;
+    private int timesIssued = 0;
+    private LinkedList<String> waitingList = new LinkedList<String>();
+
+    public Book(String id, String title, String author, String genre) {
+        this.id = id;
+        this.title = title;
+        this.author = author;
+        this.genre = genre;
+    }
+
+    public String getId() { return id; }
+    public String getTitle() { return title; }
+    public String getAuthor() { return author; }
+    public String getGenre() { return genre; }
+    public boolean isAvailable() { return available; }
+    public int getTimesIssued() { return timesIssued; }
+    public void setAvailable(boolean available) { this.available = available; }
+    public void markIssued() { available = false; timesIssued++; }
+
+    public void joinWaitingList(String memberId) { waitingList.add(memberId); }
+    public boolean isWaiting(String memberId) { return waitingList.contains(memberId); }
+    public boolean hasWaiting() { return !waitingList.isEmpty(); }
+    public String nextWaiting() { return waitingList.removeFirst(); }
+    public int waitingCount() { return waitingList.size(); }
+    public LinkedList<String> getWaitingList() { return waitingList; }
+    public void clearWaitingList() { waitingList.clear(); }
+
+    public String toString() {
+        return id + " | " + title + " | " + author + " | " + genre + " | " + (available ? "Available" : "Issued");
+    }
+}
+
+class Person {
+    protected String id;
+    protected String name;
+
+    public Person(String id, String name) {
+        this.id = id;
+        this.name = name;
+    }
+
+    public String getId() { return id; }
+    public String getName() { return name; }
+}
+
+class Member extends Person {
+    public static final int MAX_BOOKS = 3;
+    public static int memberCount = 0;
+    private Set<String> borrowed = new HashSet<String>();
+
+    public Member(String name) {
+        super("M" + (++memberCount), name);
+    }
+
+    public boolean hasBorrowed(String bookId) { return borrowed.contains(bookId); }
+    public boolean canBorrow() { return borrowed.size() < MAX_BOOKS; }
+    public void borrow(String bookId) { borrowed.add(bookId); }
+    public boolean giveBack(String bookId) { return borrowed.remove(bookId); }
+
+    public String toString() {
+        return id + " | " + name + " | Books held: " + borrowed.size() + "/" + MAX_BOOKS;
+    }
+}
+
+class Library {
+    private Repository<Book> books = new Repository<Book>();
+    private Repository<Member> members = new Repository<Member>();
+    private Set<String> genres = new HashSet<String>();
+    private ArrayList<String> log = new ArrayList<String>();
+    private Member demoA;
+    private Member demoB;
+
+    public void loadSampleData() {
+        try {
+            addBook(new Book("B101", "Java: The Complete Reference", "Herbert Schildt", "Programming"));
+            addBook(new Book("B102", "Core Java Volume I", "Cay Horstmann", "Programming"));
+            addBook(new Book("B103", "Clean Code", "Robert C. Martin", "Programming"));
+            addBook(new Book("B104", "Wings of Fire", "A.P.J. Abdul Kalam", "Biography"));
+            addBook(new Book("B105", "The Alchemist", "Paulo Coelho", "Fiction"));
+            addBook(new Book("B106", "A Brief History of Time", "Stephen Hawking", "Science"));
+            addBook(new Book("B107", "Sapiens", "Yuval Noah Harari", "History"));
+            addBook(new Book("B108", "Malgudi Days", "R.K. Narayan", "Fiction"));
+        } catch (LibraryException e) {
+            System.out.println("Sample data error: " + e.getMessage());
+        }
+        registerMember("Arun");
+        registerMember("Meera");
+        registerMember("Karthik");
+        registerMember("Divya");
+    }
+
+    public void ensureDemoData() {
+        if (demoA == null) {
+            try {
+                addBook(new Book("D001", "Concurrency in Practice", "Brian Goetz", "Programming"));
+            } catch (LibraryException e) {}
+            demoA = registerMember("Asha");
+            demoB = registerMember("Ravi");
+        }
+        try {
+            Book b = findBook("D001");
+            demoA.giveBack("D001");
+            demoB.giveBack("D001");
+            b.setAvailable(true);
+            b.clearWaitingList();
+        } catch (BookNotFoundException e) {}
+    }
+
+    public String getDemoAId() { return demoA.getId(); }
+    public String getDemoBId() { return demoB.getId(); }
+
+    private Book findBook(String bookId) throws BookNotFoundException {
+        for (Book b : books.getAll()) {
+            if (b.getId().equals(bookId)) {
+                return b;
+            }
+        }
+        throw new BookNotFoundException(bookId);
+    }
+
+    private Member findMember(String memberId) throws MemberNotFoundException {
+        for (Member m : members.getAll()) {
+            if (m.getId().equals(memberId)) {
+                return m;
+            }
+        }
+        throw new MemberNotFoundException(memberId);
+    }
+
+    private String nameOf(String memberId) {
+        for (Member m : members.getAll()) {
+            if (m.getId().equals(memberId)) {
+                return m.getName();
+            }
+        }
+        return memberId;
+    }
+
+    public ArrayList<Book> getAllBooks() { return books.getAll(); }
+    public ArrayList<Member> getAllMembers() { return members.getAll(); }
+
+    public void addBook(Book b) throws LibraryException {
+        if (b.getId().isEmpty() || b.getTitle().isEmpty() || b.getAuthor().isEmpty() || b.getGenre().isEmpty()) {
+            throw new LibraryException("No book field can be empty.");
+        }
+        for (Book existing : books.getAll()) {
+            if (existing.getId().equals(b.getId())) {
+                throw new LibraryException("A book with ID " + b.getId() + " already exists.");
+            }
+        }
+        books.add(b);
+        genres.add(b.getGenre());
+        record("Book added: " + b.getTitle() + " (" + b.getId() + ")");
+    }
+
+    public void removeBook(String bookId) throws LibraryException {
+        Book target = findBook(bookId);
+        if (!target.isAvailable()) {
+            throw new LibraryException("\"" + target.getTitle() + "\" is issued and cannot be removed.");
+        }
+        
+        String removedGenre = target.getGenre();
+        Iterator<Book> it = books.getAll().iterator();
+        while (it.hasNext()) {
+            if (it.next().getId().equals(bookId)) {
+                it.remove();
+                break;
+            }
+        }
+
+        // Fix 3: Optimized Genre Removal (prevents rebuilding the entire set)
+        boolean genreStillExists = false;
+        for (Book b : books.getAll()) {
+            if (b.getGenre().equals(removedGenre)) {
+                genreStillExists = true;
+                break;
+            }
+        }
+        if (!genreStillExists) {
+            genres.remove(removedGenre);
+        }
+        
+        record("Book removed: " + target.getTitle() + " (" + bookId + ")");
+    }
+
+    public Member registerMember(String name) {
+        Member m = new Member(name);
+        members.add(m);
+        record("Member registered: " + name + " (" + m.getId() + ")");
+        return m;
+    }
+
+    public synchronized String issueBook(String bookId, String memberId) throws LibraryException {
+        Book b = findBook(bookId);
+        Member m = findMember(memberId);
+
+        if (m.hasBorrowed(bookId)) {
+            throw new LibraryException(m.getName() + " already holds \"" + b.getTitle() + "\".");
+        }
+        if (!m.canBorrow()) {
+            throw new BorrowLimitException(m.getName(), Member.MAX_BOOKS);
+        }
+
+        if (b.isAvailable()) {
+            return doIssue(b, m);
+        }
+
+        if (b.isWaiting(memberId)) {
+            throw new LibraryException(m.getName() + " is already on the waiting list.");
+        }
+        
+        b.joinWaitingList(memberId);
+        String msg = "\"" + b.getTitle() + "\" is currently issued. " + m.getName() + " added to waiting list at position " + b.waitingCount() + ".";
+        record(msg);
+        return msg;
+    }
+
+    public synchronized String returnBook(String bookId, String memberId) throws LibraryException {
+        Book b = findBook(bookId);
+        Member m = findMember(memberId);
+
+        if (!m.giveBack(bookId)) {
+            throw new LibraryException(m.getName() + " has not borrowed \"" + b.getTitle() + "\".");
+        }
+        
+        b.setAvailable(true);
+        String msg = m.getName() + " returned \"" + b.getTitle() + "\".";
+        record(msg);
+
+        // Fix 1: Properly handles members in the waiting list who can't borrow anymore
+        while (b.hasWaiting()) {
+            Member next = findMember(b.nextWaiting()); 
+            if (next.canBorrow()) {
+                msg += "\n>> Auto-issued: " + doIssue(b, next);
+                break;
+            } else {
+                msg += "\n>> Reservation skipped for " + next.getName() + " (borrow limit reached).";
+                record("Reservation skipped for " + next.getName() + " on book " + b.getId() + " due to borrow limit.");
+            }
+        }
+        return msg;
+    }
+
+    private String doIssue(Book b, Member m) {
+        b.markIssued();
+        m.borrow(b.getId());
+        String msg = "\"" + b.getTitle() + "\" issued to " + m.getName() + ".";
+        record(msg);
+        return msg;
+    }
+
+    public ArrayList<Book> search(String keyword) {
+        ArrayList<Book> results = new ArrayList<Book>();
+        String k = keyword.toLowerCase();
+        Iterator<Book> it = books.getAll().iterator();
+        while (it.hasNext()) {
+            Book b = it.next();
+            if (b.getTitle().toLowerCase().contains(k) || b.getAuthor().toLowerCase().contains(k)) {
+                results.add(b);
+            }
+        }
+        return results;
+    }
+
+    private boolean outOfOrder(Book a, Book b, int mode) {
+        if (mode == 1) {
+            return a.getTitle().compareToIgnoreCase(b.getTitle()) > 0;
+        } else if (mode == 2) {
+            return a.getAuthor().compareToIgnoreCase(b.getAuthor()) > 0;
+        }
+        return a.getTimesIssued() < b.getTimesIssued();
+    }
+
+    public ArrayList<Book> sortedBooks(int mode) {
+        ArrayList<Book> list = new ArrayList<Book>(books.getAll());
+        for (int i = 0; i < list.size() - 1; i++) {
+            for (int j = 0; j < list.size() - 1 - i; j++) {
+                if (outOfOrder(list.get(j), list.get(j + 1), mode)) {
+                    Book temp = list.get(j);
+                    list.set(j, list.get(j + 1));
+                    list.set(j + 1, temp);
+                }
+            }
+        }
+        return list;
+    }
+
+    public void showGenreCatalogue() {
+        System.out.println("\nUnique genres (" + genres.size() + "): " + genres);
+        for (String g : genres) {
+            System.out.println("\n[" + g.toUpperCase() + "]");
+            for (Book b : books.getAll()) {
+                if (b.getGenre().equals(g)) {
+                    System.out.println("   " + b.getId() + " - " + b.getTitle() + " (" + (b.isAvailable() ? "Available" : "Issued") + ")");
+                }
+            }
+        }
+    }
+
+    public void showPopularityReport() {
+        System.out.println("\n--- MOST POPULAR BOOKS ---");
+        int rank = 1;
+        for (Book b : sortedBooks(3)) {
+            if (b.getTimesIssued() > 0) {
+                System.out.println(rank + ". " + b.getTitle() + " -> issued " + b.getTimesIssued() + " time(s)");
+                rank++;
+            }
+        }
+        if (rank == 1) {
+            System.out.println("No books have been issued yet.");
+        }
+    }
+
+    public void showWaitingLists() {
+        System.out.println("\n--- WAITING LISTS (front of the line is served first) ---");
+        boolean any = false;
+        for (Book b : books.getAll()) {
+            if (b.hasWaiting()) {
+                any = true;
+                String line = "";
+                for (String memberId : b.getWaitingList()) {
+                    line += nameOf(memberId) + " -> ";
+                }
+                System.out.println(b.getTitle() + ": " + line + "(end)");
+            }
+        }
+        if (!any) {
+            System.out.println("No pending reservations.");
+        }
+    }
+
+    public void showLog() {
+        System.out.println("\n--- TRANSACTION LOG (" + log.size() + " entries) ---");
+        for (int i = 0; i < log.size(); i++) {
+            System.out.println((i + 1) + ". " + log.get(i));
+        }
+    }
+
+    public void saveLogToFile(String fileName) {
+        FileWriter writer = null;
+        try {
+            writer = new FileWriter(fileName);
+            for (String entry : log) {
+                writer.write(entry + "\n");
+            }
+            System.out.println("Log saved to " + fileName + " (" + log.size() + " entries).");
+        } catch (IOException e) {
+            System.out.println("Could not write to file: " + e.getMessage());
+        } finally {
+            try {
+                if (writer != null) {
+                    writer.close();
+                }
+            } catch (IOException e) {
+                System.out.println("Error while closing the file.");
+            }
+        }
+    }
+
+    public <T> void printAll(String heading, Collection<T> items) {
+        System.out.println("\n--- " + heading + " ---");
+        for (T item : items) {
+            System.out.println(item);
+        }
+    }
+
+    private void record(String message) {
+        log.add(message);
+    }
+}
