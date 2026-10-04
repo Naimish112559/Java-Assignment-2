@@ -1,0 +1,328 @@
+import java.util.*;
+
+class InvalidVehicleIdException extends Exception {
+    public InvalidVehicleIdException(String message) {
+        super(message);
+    }
+}
+
+class VehicleUnavailableException extends Exception {
+    public VehicleUnavailableException(String message) {
+        super(message);
+    }
+}
+
+class InvalidRentalDurationException extends Exception {
+    public InvalidRentalDurationException(String message) {
+        super(message);
+    }
+}
+
+class InvalidCustomerDetailsException extends Exception {
+    public InvalidCustomerDetailsException(String message) {
+        super(message);
+    }
+}
+
+class LateReturnException extends Exception {
+    private int lateDays;
+    private double baseCharge;
+    private double lateFee;
+
+    public LateReturnException(int lateDays, double baseCharge, double lateFee) {
+        super("Vehicle returned " + lateDays + " day(s) late.");
+        this.lateDays = lateDays;
+        this.baseCharge = baseCharge;
+        this.lateFee = lateFee;
+    }
+
+    public int getLateDays() {
+        return lateDays;
+    }
+
+    public double getBaseCharge() {
+        return baseCharge;
+    }
+
+    public double getLateFee() {
+        return lateFee;
+    }
+
+    public double getTotal() {
+        return baseCharge + lateFee;
+    }
+}
+
+class Customer {
+    private String name;
+    private String phone;
+
+    public Customer(String name, String phone) throws InvalidCustomerDetailsException {
+        if (name == null || name.trim().isEmpty() || !name.matches("[A-Za-z '-]+")) {
+            throw new InvalidCustomerDetailsException(
+                    "Name must contain only letters, spaces, hyphens, or apostrophes.");
+        }
+        if (phone == null || !phone.matches("\\d{10}")) {
+            throw new InvalidCustomerDetailsException("Phone number must be exactly 10 digits.");
+        }
+        this.name = name.trim();
+        this.phone = phone;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+}
+
+class Vehicle {
+    private int id;
+    private String model;
+    private double ratePerDay;
+    private boolean available;
+    private Customer renter;
+    private int rentedDays;
+
+    public Vehicle(int id, String model, double ratePerDay) {
+        this.id = id;
+        this.model = model;
+        this.ratePerDay = ratePerDay;
+        this.available = true;
+    }
+
+    public int getId() {
+        return id;
+    }
+
+    public String getModel() {
+        return model;
+    }
+
+    public double getRatePerDay() {
+        return ratePerDay;
+    }
+
+    public boolean isAvailable() {
+        return available;
+    }
+
+    public Customer getRenter() {
+        return renter;
+    }
+
+    public int getRentedDays() {
+        return rentedDays;
+    }
+
+    public void rent(Customer c, int days) {
+        this.available = false;
+        this.renter = c;
+        this.rentedDays = days;
+    }
+
+    public void giveBack() {
+        this.available = true;
+        this.renter = null;
+        this.rentedDays = 0;
+    }
+
+    @Override
+    public String toString() {
+        return String.format("ID: %d | %-16s | Rs.%.2f/day | %s",
+                id, model, ratePerDay, available ? "Available" : "Rented");
+    }
+}
+
+class RentalSystem {
+    private static final int MAX_DAYS = 30;
+    private static final double LATE_PENALTY_MULTIPLIER = 1.5;
+    private ArrayList<Vehicle> vehicles = new ArrayList<>();
+
+    public RentalSystem() {
+        vehicles.add(new Vehicle(101, "Maruti Swift", 1500));
+        vehicles.add(new Vehicle(102, "Hyundai i20", 1800));
+        vehicles.add(new Vehicle(103, "Honda City", 2500));
+        vehicles.add(new Vehicle(104, "Toyota Innova", 3500));
+        vehicles.add(new Vehicle(105, "Mahindra Thar", 4000));
+    }
+
+    public void displayAvailableVehicles() {
+        System.out.println("\n--- Available Vehicles ---");
+        boolean any = false;
+        for (Vehicle v : vehicles) {
+            if (v.isAvailable()) {
+                System.out.println(v);
+                any = true;
+            }
+        }
+        if (!any) {
+            System.out.println("Sorry, no vehicles are available right now.");
+        }
+    }
+
+    public void displayAllVehicles() {
+        System.out.println("\n--- All Vehicles ---");
+        for (Vehicle v : vehicles) {
+            System.out.println(v);
+        }
+    }
+
+    private Vehicle findVehicle(int id) throws InvalidVehicleIdException {
+        for (Vehicle v : vehicles) {
+            if (v.getId() == id) {
+                return v;
+            }
+        }
+        throw new InvalidVehicleIdException("No vehicle found with ID " + id + ".");
+    }
+
+    public double rentVehicle(int id, String name, String phone, int days)
+            throws InvalidVehicleIdException, VehicleUnavailableException,
+            InvalidRentalDurationException, InvalidCustomerDetailsException {
+        Vehicle v = findVehicle(id);
+        if (!v.isAvailable()) {
+            throw new VehicleUnavailableException(
+                    v.getModel() + " (ID " + id + ") is currently rented out.");
+        }
+        if (days < 1 || days > MAX_DAYS) {
+            throw new InvalidRentalDurationException(
+                    "Rental duration must be between 1 and " + MAX_DAYS + " days.");
+        }
+        Customer c = new Customer(name, phone);
+        v.rent(c, days);
+        return days * v.getRatePerDay();
+    }
+
+    public double returnVehicle(int id, int actualDays)
+            throws InvalidVehicleIdException, VehicleUnavailableException,
+            LateReturnException {
+        Vehicle v = findVehicle(id);
+        if (v.isAvailable()) {
+            throw new VehicleUnavailableException(
+                    v.getModel() + " (ID " + id + ") is not currently rented, so it cannot be returned.");
+        }
+        
+        if (actualDays < 1) {
+            actualDays = 1;
+        }
+
+        int bookedDays = v.getRentedDays();
+        int billableDays = Math.min(bookedDays, actualDays);
+        double baseCharge = billableDays * v.getRatePerDay();
+        
+        v.giveBack();
+        
+        if (actualDays > bookedDays) {
+            int lateDays = actualDays - bookedDays;
+            double lateFee = lateDays * v.getRatePerDay() * LATE_PENALTY_MULTIPLIER;
+            throw new LateReturnException(lateDays, baseCharge, lateFee);
+        }
+        return baseCharge;
+    }
+}
+
+class Main {
+    private static int parseId(String text) throws InvalidVehicleIdException {
+        try {
+            return Integer.parseInt(text.trim());
+        } catch (NumberFormatException e) {
+            throw new InvalidVehicleIdException("Vehicle ID must be a number.");
+        }
+    }
+
+    private static int parseDays(String text) throws InvalidRentalDurationException {
+        try {
+            return Integer.parseInt(text.trim());
+        } catch (NumberFormatException e) {
+            throw new InvalidRentalDurationException("Number of days must be a whole number.");
+        }
+    }
+
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        RentalSystem system = new RentalSystem();
+        boolean running = true;
+        System.out.println("===== VEHICLE RENTAL SYSTEM =====");
+        
+        while (running) {
+            System.out.println("\n1. Display available vehicles");
+            System.out.println("2. Rent a vehicle");
+            System.out.println("3. Return a vehicle");
+            System.out.println("4. Exit");
+            System.out.print("Enter your choice: ");
+            
+            if (!sc.hasNextLine()) {
+                break; 
+            }
+            
+            String choice = sc.nextLine().trim();
+            try {
+                switch (choice) {
+                    case "1":
+                        system.displayAvailableVehicles();
+                        break;
+                    case "2":
+                        system.displayAvailableVehicles();
+                        System.out.print("\nEnter vehicle ID to rent: ");
+                        if (!sc.hasNextLine()) break;
+                        int rentId = parseId(sc.nextLine());
+                        
+                        System.out.print("Enter customer name: ");
+                        if (!sc.hasNextLine()) break;
+                        String name = sc.nextLine();
+                        
+                        System.out.print("Enter 10-digit phone number: ");
+                        if (!sc.hasNextLine()) break;
+                        String phone = sc.nextLine().trim();
+                        
+                        System.out.print("Enter rental duration (days): ");
+                        if (!sc.hasNextLine()) break;
+                        int days = parseDays(sc.nextLine());
+                        
+                        double charge = system.rentVehicle(rentId, name, phone, days);
+                        System.out.println("\nRental successful!");
+                        System.out.printf("Customer : %s%n", name.trim());
+                        System.out.printf("Duration : %d day(s)%n", days);
+                        System.out.printf("Charges : Rs.%.2f%n", charge);
+                        break;
+                    case "3":
+                        system.displayAllVehicles();
+                        System.out.print("\nEnter vehicle ID to return: ");
+                        if (!sc.hasNextLine()) break;
+                        int retId = parseId(sc.nextLine());
+                        
+                        System.out.print("Enter number of days the vehicle was used: ");
+                        if (!sc.hasNextLine()) break;
+                        int used = parseDays(sc.nextLine());
+                        
+                        double bill = system.returnVehicle(retId, used);
+                        System.out.println("\nVehicle returned successfully. Thank you!");
+                        System.out.printf("Total charges: Rs.%.2f%n", bill);
+                        break;
+                    case "4":
+                        running = false;
+                        System.out.println("Thank you for using the Vehicle Rental System.");
+                        break;
+                    default:
+                        System.out.println("Invalid choice. Please enter 1-4.");
+                }
+            } catch (InvalidVehicleIdException | VehicleUnavailableException
+                     | InvalidRentalDurationException | InvalidCustomerDetailsException e) {
+                System.out.println("\nError: " + e.getMessage());
+            } catch (LateReturnException e) {
+                System.out.println("\nVehicle returned, but: " + e.getMessage());
+                System.out.printf("Base charge : Rs.%.2f%n", e.getBaseCharge());
+                System.out.printf("Late fee : Rs.%.2f (%d day(s) at 1.5x rate)%n",
+                        e.getLateFee(), e.getLateDays());
+                System.out.printf("Total payable: Rs.%.2f%n", e.getTotal());
+            } finally {
+                if (running) {
+                    System.out.println("----------------------------------");
+                }
+            }
+        }
+    }
+}
