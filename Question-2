@@ -1,11 +1,6 @@
 import java.io.*;
 import java.util.*;
 
-/**
- * SMART LIBRARY MANAGEMENT SYSTEM
- * Real-time problem: manage books, members, borrowing, returning and
- * reservations in a college library using the Java Collections Framework.
- */
 public class LibraryManagementSystem {
 
     public static void main(String[] args) {
@@ -37,7 +32,6 @@ public class LibraryManagementSystem {
             System.out.println(" 0. Exit");
             System.out.print("Enter choice: ");
 
-            // Fix 2: Prevent Ctrl+D / EOF crash
             if (!sc.hasNextLine()) {
                 break;
             }
@@ -422,7 +416,6 @@ class Library {
             }
         }
 
-        // Fix 3: Optimized Genre Removal (prevents rebuilding the entire set)
         boolean genreStillExists = false;
         for (Book b : books.getAll()) {
             if (b.getGenre().equals(removedGenre)) {
@@ -481,7 +474,6 @@ class Library {
         String msg = m.getName() + " returned \"" + b.getTitle() + "\".";
         record(msg);
 
-        // Fix 1: Properly handles members in the waiting list who can't borrow anymore
         while (b.hasWaiting()) {
             Member next = findMember(b.nextWaiting()); 
             if (next.canBorrow()) {
